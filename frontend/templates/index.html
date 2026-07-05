@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DiCE & SHAP Research Assistant</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom Style -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="background-glows">
+        <div class="glow glow-1"></div>
+        <div class="glow glow-2"></div>
+    </div>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="glass-panel main-header">
+            <div class="logo-area">
+                <i class="fa-solid fa-microscope icon-logo"></i>
+                <div>
+                    <h1>DiCE & SHAP</h1>
+                    <p>Explainable AI Research Assistant</p>
+                </div>
+            </div>
+            <div class="header-status">
+                <span id="status-badge" class="badge badge-inactive">
+                    <span class="status-dot"></span> No Dataset Loaded
+                </span>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- Left Panel: Configurations -->
+            <section class="side-panel">
+                <!-- Step 1: Upload -->
+                <div class="glass-panel config-section" id="upload-panel">
+                    <h2 class="section-title"><span class="step-num">1</span> Dataset Upload</h2>
+                    <form id="upload-form" class="config-form">
+                        <div class="form-group">
+                            <label for="target_column">Target Column Name</label>
+                            <input type="text" id="target_column" name="target_column" placeholder="e.g. Target, Price, Class" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Select CSV or Excel file</label>
+                            <div class="file-upload-wrapper" id="drop-zone">
+                                <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+                                <p>Drag & drop or click to upload</p>
+                                <span class="file-name-label" id="file-name-label">Max 10 features, xlsx or csv</span>
+                                <input type="file" id="dataset-file" name="file" accept=".csv, .xlsx, .xls" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary" id="btn-upload">
+                            <i class="fa-solid fa-upload"></i> Upload & Validate
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Step 2: Parameters (Hidden initially) -->
+                <div class="glass-panel config-section disabled" id="parameters-panel">
+                    <h2 class="section-title"><span class="step-num">2</span> Workflow Parameters</h2>
+                    
+                    <div class="parameters-lock-overlay">
+                        <i class="fa-solid fa-lock"></i>
+                        <p>Upload a dataset to unlock parameters</p>
+                    </div>
+
+                    <form id="parameters-form" class="config-form">
+                        <!-- Target Range -->
+                        <div class="form-group">
+                            <label>Desired Target Range</label>
+                            <div class="range-inputs">
+                                <div class="range-field">
+                                    <span>Min</span>
+                                    <input type="number" id="target-min" step="any" placeholder="0" required>
+                                </div>
+                                <div class="range-field">
+                                    <span>Max</span>
+                                    <input type="number" id="target-max" step="any" placeholder="100" required>
+                                </div>
+                            </div>
+                            <span class="help-text">Define the target range for counterfactuals.</span>
+                        </div>
+
+                        <!-- CF Count & Threshold -->
+                        <div class="form-group">
+                            <label for="total-cfs">Number of Counterfactuals (max 10)</label>
+                            <input type="number" id="total-cfs" min="1" max="10" value="3" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="target-threshold">Target Threshold</label>
+                            <input type="number" id="target-threshold" step="any" value="0.0" required>
+                            <span class="help-text">Optional reference threshold for predicted output.</span>
+                        </div>
+
+                        <!-- Dynamic Feature Inputs -->
+                        <div class="feature-parameters-container">
+                            <div class="subsection-header" style="margin-top: 16px; margin-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 8px;">
+                                <h3 class="subsection-title" style="margin-top: 0; margin-bottom: 0; border-bottom: none; padding-bottom: 0;">Query Instance & Ranges</h3>
+                            </div>
+                            <div id="dynamic-features-list">
+                                <!-- Populated dynamically by JS -->
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-success btn-large" id="btn-run">
+                            <i class="fa-solid fa-play"></i> Run Research Assistant
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Right Panel: Results & Outputs -->
+            <section class="results-panel">
+                <!-- Welcome State -->
+                <div class="glass-panel welcome-state-panel" id="welcome-panel">
+                    <div class="welcome-content">
+                        <div class="pulse-icon-wrapper">
+                            <i class="fa-solid fa-circle-nodes welcome-icon"></i>
+                        </div>
+                        <h2>Ready to Start Exploration</h2>
+                        <p>Upload your dataset and specify your target parameters in the left panel to trigger the validation, training, SHAP, and DiCE execution pipeline.</p>
+                    </div>
+                </div>
+
+                <!-- Loader -->
+                <div class="glass-panel loader-panel hidden" id="loader-panel">
+                    <div class="spinner">
+                        <div class="double-bounce1"></div>
+                        <div class="double-bounce2"></div>
+                    </div>
+                    <h3 id="loader-status">Training Random Forest Model...</h3>
+                    <p>This may take up to 30 seconds for SHAP value computation.</p>
+                </div>
+
+                <!-- Results Output (Hidden initially) -->
+                <div class="results-container hidden" id="results-container">
+                    
+                    <!-- Metrics Row -->
+                    <div class="metrics-row" style="grid-template-columns: repeat(4, 1fr);">
+                        <div class="glass-panel metric-card">
+                            <span class="metric-label">Train R² Score</span>
+                            <span class="metric-value" id="val-train-r2">0.95</span>
+                        </div>
+                        <div class="glass-panel metric-card">
+                            <span class="metric-label">Train OOB Score</span>
+                            <span class="metric-value" id="val-train-oob">0.94</span>
+                        </div>
+                        <div class="glass-panel metric-card">
+                            <span class="metric-label">Test R² Score</span>
+                            <span class="metric-value" id="val-test-r2">0.91</span>
+                        </div>
+                        <div class="glass-panel metric-card highlight">
+                            <span class="metric-label">Query Instance Prediction</span>
+                            <span class="metric-value" id="val-query-prediction">120.4</span>
+                        </div>
+                    </div>
+
+                    <!-- Plots Grid -->
+                    <div class="glass-panel results-section">
+                        <div class="section-header">
+                            <h2 class="section-title"><i class="fa-solid fa-chart-line"></i> Model Performance & SHAP Explanations</h2>
+                            <div class="tab-buttons">
+                                <button class="tab-btn active" data-tab="tab-shap">SHAP Plots</button>
+                                <button class="tab-btn" data-tab="tab-predictions">Predicted vs Target</button>
+                                <button class="tab-btn" data-tab="tab-correlation">Correlation Matrix</button>
+                            </div>
+                        </div>
+
+                        <!-- SHAP Tab -->
+                        <div class="tab-content" id="tab-shap">
+                            <div class="plots-grid" style="grid-template-columns: repeat(2, 1fr);">
+                                <div class="plot-card">
+                                    <h3>SHAP Beeswarm Plot</h3>
+                                    <div class="img-wrapper">
+                                        <img id="img-shap-beeswarm" src="" alt="SHAP Beeswarm">
+                                    </div>
+                                </div>
+                                <div class="plot-card">
+                                    <h3>SHAP Feature Importance</h3>
+                                    <div class="img-wrapper">
+                                        <img id="img-shap-importance" src="" alt="SHAP Feature Importance">
+                                    </div>
+                                </div>
+                                <div class="plot-card" style="grid-column: span 2;">
+                                    <h3>SHAP Waterfall Plot (Current Instance)</h3>
+                                    <div class="img-wrapper" style="max-height: 420px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                                        <img id="img-shap-waterfall" src="" alt="SHAP Waterfall" style="max-height: 400px; width: auto; object-fit: contain;">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Correlation Tab -->
+                        <div class="tab-content hidden" id="tab-correlation">
+                            <div style="display: grid; grid-template-columns: 1.8fr 1.2fr; gap: 24px;">
+                                <div class="plot-card">
+                                    <h3>Correlation Heatmap</h3>
+                                    <div class="img-wrapper" style="max-height: 500px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                                        <img id="img-correlation-heatmap" src="" alt="Correlation Heatmap" style="max-height: 480px; width: auto; object-fit: contain;">
+                                    </div>
+                                </div>
+                                <div class="glass-panel" style="padding: 20px; border-radius: 12px; display: flex; flex-direction: column; border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.02);">
+                                    <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 1rem; color: var(--primary-hover); font-weight: 600;">
+                                        <i class="fa-solid fa-list-ol"></i> Top 10 Correlation Contributions
+                                    </h3>
+                                    <div id="correlation-list-container" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; max-height: 420px; padding-right: 4px;">
+                                        <!-- Top 10 list populated dynamically via JS -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Predictions Tab -->
+                        <div class="tab-content hidden" id="tab-predictions">
+                            <div class="plots-grid" style="grid-template-columns: 1fr;">
+                                <div class="plot-card">
+                                    <h3>Model Predictions Fit Overlay (Train & Test with Train 95% PI)</h3>
+                                    <div class="img-wrapper" style="max-height: 500px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                                        <img id="img-train-fit" src="" alt="Predictions Fit Overlay" style="max-height: 480px; width: auto; object-fit: contain;">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DiCE Counterfactuals -->
+                    <div class="glass-panel results-section">
+                        <h2 class="section-title"><i class="fa-solid fa-table-list"></i> DiCE Counterfactual Recommendations</h2>
+                        <p class="section-desc">Recommended changes to features in order to push the target output into the desired target range.</p>
+                        
+                        <!-- Query Instance Display Box -->
+                        <div class="query-instance-display-box" id="query-display-box" style="margin-bottom: 24px; padding: 20px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: var(--radius-md);">
+                            <!-- Populated dynamically -->
+                        </div>
+                        
+                        <div class="table-container">
+                            <table class="dice-table" id="dice-table">
+                                <thead>
+                                    <tr id="dice-table-header">
+                                        <!-- Populated dynamically -->
+                                    </tr>
+                                </thead>
+                                <tbody id="dice-table-body">
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- JavaScript Source -->
+    <script src="{{ url_for('static', filename='main.js') }}"></script>
+</body>
+</html>
