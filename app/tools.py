@@ -230,7 +230,19 @@ def generate_shap_analysis(model_path: str, sampled_path: str, target_column: st
     }
 
 
-def generate_dice_counterfactuals(model_path: str, sampled_path: str, target_column: str, query_instance_dict: dict, target_range: list, permitted_ranges: dict = None, features_to_vary: list = None, total_CFs: int = 3, integer_features: list = None) -> dict:
+class ConservativeModel:
+    def __init__(self, model):
+        self.model = model
+        
+    def predict(self, instances):
+        # instances can be a DataFrame or numpy array
+        # Collect predictions from all estimators in Random Forest
+        preds = np.array([dt.predict(instances) for dt in self.model.estimators_]).T
+        # Calculate the 2.5th percentile (Lower Bound of 95% prediction interval)
+        return np.percentile(preds, 2.5, axis=1)
+
+
+def generate_dice_counterfactuals(model_path: str, sampled_path: str, target_column: str, query_instance_dict: dict, target_range: list, permitted_ranges: dict = None, features_to_vary: list = None, total_CFs: int = 3, integer_features: list = None, optimization_strategy: str = 'standard') -> dict:
     """Generates DiCE counterfactuals to show how features need to change to reach a target range."""
     with open(model_path, "rb") as f:
         model = pickle.load(f)
@@ -238,9 +250,14 @@ def generate_dice_counterfactuals(model_path: str, sampled_path: str, target_col
     df = pd.read_csv(sampled_path)
     features = [col for col in df.columns if col != target_column]
 
+    if optimization_strategy == 'conservative':
+        wrapped_model = ConservativeModel(model)
+    else:
+        wrapped_model = model
+
     # Construct DiCE data and model objects
     d = dice_ml.Data(dataframe=df, continuous_features=features, outcome_name=target_column)
-    m = dice_ml.Model(model=model, backend="sklearn", model_type="regressor")
+    m = dice_ml.Model(model=wrapped_model, backend="sklearn", model_type="regressor")
     
     # Initialize DiCE explainer
     exp = dice_ml.Dice(d, m, method="random")
@@ -268,6 +285,13 @@ def generate_dice_counterfactuals(model_path: str, sampled_path: str, target_col
         # Convert to dictionary/dataframe format to return
         cf_df = cf.cf_examples_list[0].final_cfs_df
         if cf_df is not None:
+            # Add predicted lower bound column (2.5% quantile prediction)
+            import numpy as np
+            cf_features = cf_df[features]
+            preds = np.array([dt.predict(cf_features) for dt in model.estimators_]).T
+            lower_bounds = np.percentile(preds, 2.5, axis=1)
+            cf_df['predicted_lower_bound'] = lower_bounds
+
             cfs_list = cf_df.to_dict(orient="records")
             # Round integer features
             if integer_features:

@@ -275,6 +275,8 @@ document.addEventListener('DOMContentLoaded', () => {
             permittedRanges[feature] = [minVal, maxVal];
         });
 
+        const optimizationStrategy = document.getElementById('optimization-strategy').value;
+
         // UI transitions
         welcomePanel.classList.add('hidden');
         resultsContainer.classList.add('hidden');
@@ -305,7 +307,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     permitted_ranges: permittedRanges,
                     features_to_vary: featuresToVary,
                     total_CFs: totalCFs,
-                    threshold: threshold
+                    threshold: threshold,
+                    optimization_strategy: optimizationStrategy
                 })
             });
 
@@ -431,10 +434,14 @@ document.addEventListener('DOMContentLoaded', () => {
         thTarget.textContent = `${targetColumn} (Predicted)`;
         diceTableHeader.appendChild(thTarget);
 
+        const thLowerBound = document.createElement('th');
+        thLowerBound.textContent = 'Predicted Lower Bound';
+        diceTableHeader.appendChild(thLowerBound);
+
         // Add Counterfactual Rows
         if (counterfactuals.length === 0) {
             const tr = document.createElement('tr');
-            const colspan = features.length + 2;
+            const colspan = features.length + 3;
             const msg = diceError ? `DiCE Execution Error: ${diceError}` : "No counterfactuals found matching the criteria. Try expanding permitted feature ranges or adjusting desired target range.";
             tr.innerHTML = `<td colspan="${colspan}" style="text-align: center; color: var(--danger); padding: 24px;"><i class="fa-solid fa-triangle-exclamation"></i> ${msg}</td>`;
             diceTableBody.appendChild(tr);
@@ -474,6 +481,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     td.style.color = 'var(--success)';
                     td.style.fontWeight = 'bold';
                 }
+            } else {
+                td.textContent = 'N/A';
+            }
+            cfRow.appendChild(td);
+
+            // Predicted Lower Bound column
+            td = document.createElement('td');
+            const lowerBoundVal = cf['predicted_lower_bound'];
+            if (lowerBoundVal !== undefined) {
+                td.textContent = parseFloat(lowerBoundVal).toFixed(2);
+                td.style.color = 'var(--text-muted)';
             } else {
                 td.textContent = 'N/A';
             }

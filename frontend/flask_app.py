@@ -149,6 +149,7 @@ def run():
     features_to_vary = data.get('features_to_vary')
     total_CFs = int(data.get('total_CFs', 3))
     threshold = float(data.get('threshold', 0.0))
+    optimization_strategy = data.get('optimization_strategy', 'standard')
 
     if not query_instance or not target_range:
         return jsonify({'success': False, 'error': 'Query instance and target range are required.'}), 400
@@ -208,7 +209,8 @@ def run():
             processed_permitted,
             features_to_vary,
             total_CFs,
-            current_dataset_info.get('integer_features')
+            current_dataset_info.get('integer_features'),
+            optimization_strategy=optimization_strategy
         )
 
         # Get query instance prediction to display alongside
@@ -216,7 +218,12 @@ def run():
         with open(train_res['model_path'], "rb") as f:
             model = pickle.load(f)
         query_df = pd.DataFrame([processed_query])[features]
-        query_prediction = float(model.predict(query_df)[0])
+        
+        if optimization_strategy == 'conservative':
+            wrapped = tools.ConservativeModel(model)
+            query_prediction = float(wrapped.predict(query_df)[0])
+        else:
+            query_prediction = float(model.predict(query_df)[0])
 
         # Step 5: Run SHAP Waterfall specifically for the query instance
         waterfall_res = tools.generate_shap_waterfall(

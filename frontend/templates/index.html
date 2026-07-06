@@ -98,6 +98,15 @@
                             <span class="help-text">Optional reference threshold for predicted output.</span>
                         </div>
 
+                        <div class="form-group">
+                            <label for="optimization-strategy">Optimization Strategy</label>
+                            <select id="optimization-strategy" style="width: 100%; box-sizing: border-box; cursor: pointer;">
+                                <option value="standard">Standard (Mean Prediction)</option>
+                                <option value="conservative">Conservative (97.5% Confidence Lower Bound)</option>
+                            </select>
+                            <span class="help-text">Select how predicted values are optimized.</span>
+                        </div>
+
                         <!-- Dynamic Feature Inputs -->
                         <div class="feature-parameters-container">
                             <div class="subsection-header" style="margin-top: 16px; margin-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 8px;">
