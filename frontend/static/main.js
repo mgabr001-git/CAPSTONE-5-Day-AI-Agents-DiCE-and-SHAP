@@ -13,6 +13,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const loaderPanel = document.getElementById('loader-panel');
     const loaderStatus = document.getElementById('loader-status');
     const resultsContainer = document.getElementById('results-container');
+    const samplingInfoMessage = document.getElementById('sampling-info-message');
+    const samplingInfoText = document.getElementById('sampling-info-text');
     
     const targetMinInput = document.getElementById('target-min');
     const targetMaxInput = document.getElementById('target-max');
@@ -114,6 +116,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Unlock Step 2 Panel
             parametersPanel.classList.remove('disabled');
+
+            // Display sampling method message
+            if (data.sampling_message) {
+                samplingInfoText.textContent = data.sampling_message;
+                samplingInfoMessage.style.display = 'block';
+            } else {
+                samplingInfoMessage.style.display = 'none';
+            }
 
             // Update Correlation Heatmap and top 10 contributions list
             const tsUpload = new Date().getTime();

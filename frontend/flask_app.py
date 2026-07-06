@@ -102,7 +102,8 @@ def upload():
         'target_range': [target_min, target_max],
         'target_default_range': target_default_range,
         'correlation_heatmap': '/images/correlation_heatmap.png',
-        'correlation_top_10': corr_res.get('top_10', [])
+        'correlation_top_10': corr_res.get('top_10', []),
+        'sampling_message': validation_res.get('sampling_message', '')
     })
 
 
