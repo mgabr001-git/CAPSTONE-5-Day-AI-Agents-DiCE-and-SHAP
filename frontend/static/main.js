@@ -227,8 +227,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const displayMax = isInt ? Math.round(maxVal) : maxVal.toFixed(2);
             
             featureCard.innerHTML = `
-                <div class="feature-param-header" style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px;">
+                <div class="feature-param-header" style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; font-weight: 600; margin-bottom: 10px;">
                     <span class="feature-name" style="color: var(--primary-hover);">${feature}</span>
+                    <select class="feature-type-select" data-feature="${feature}" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-muted); border-radius: 4px; padding: 2px 6px; font-size: 0.75rem; font-family: var(--font-outfit); cursor: pointer;">
+                        <option value="float" ${isInt ? '' : 'selected'}>Float</option>
+                        <option value="int" ${isInt ? 'selected' : ''}>Integer</option>
+                    </select>
                 </div>
                 <div class="feature-grid-inputs" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: center;">
                     <div>
@@ -244,6 +248,25 @@ document.addEventListener('DOMContentLoaded', () => {
                     </label>
                 </div>
             `;
+            
+            // Add change listener to select type to update input step & round value
+            const selectType = featureCard.querySelector('.feature-type-select');
+            const permitMin = featureCard.querySelector('.feature-permit-min');
+            const permitMax = featureCard.querySelector('.feature-permit-max');
+            
+            selectType.addEventListener('change', () => {
+                const modeInt = selectType.value === 'int';
+                permitMin.step = modeInt ? '1' : 'any';
+                permitMax.step = modeInt ? '1' : 'any';
+                if (modeInt) {
+                    permitMin.value = Math.round(parseFloat(permitMin.value));
+                    permitMax.value = Math.round(parseFloat(permitMax.value));
+                }
+                
+                // Re-render query display box so the inputs match the type selection
+                updateQueryDisplayBox(currentQueryInstance, parseFloat(valQueryPrediction.textContent));
+            });
+
             dynamicFeaturesList.appendChild(featureCard);
         });
     }
@@ -294,6 +317,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const optimizationStrategy = document.getElementById('optimization-strategy').value;
 
+        const integerFeatures = [];
+        document.querySelectorAll('.feature-type-select').forEach(select => {
+            if (select.value === 'int') {
+                integerFeatures.push(select.getAttribute('data-feature'));
+            }
+        });
+
         // UI transitions
         welcomePanel.classList.add('hidden');
         resultsContainer.classList.add('hidden');
@@ -325,7 +355,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     features_to_vary: featuresToVary,
                     total_CFs: totalCFs,
                     threshold: threshold,
-                    optimization_strategy: optimizationStrategy
+                    optimization_strategy: optimizationStrategy,
+                    integer_features: integerFeatures
                 })
             });
 
@@ -392,7 +423,8 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
                 ${features.map(feat => {
-                    const isInt = uploadedDatasetInfo.integer_features && uploadedDatasetInfo.integer_features.includes(feat);
+                    const selectEl = document.querySelector(`.feature-type-select[data-feature="${feat}"]`);
+                    const isInt = selectEl ? (selectEl.value === 'int') : (uploadedDatasetInfo.integer_features && uploadedDatasetInfo.integer_features.includes(feat));
                     const val = queryInstance[feat];
                     const displayVal = isInt ? Math.round(val) : val.toFixed(2);
                     return `
@@ -476,7 +508,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 td = document.createElement('td');
                 const val = cf[feat];
                 const origVal = queryInstance[feat];
-                const isInt = uploadedDatasetInfo.integer_features && uploadedDatasetInfo.integer_features.includes(feat);
+                
+                const selectEl = document.querySelector(`.feature-type-select[data-feature="${feat}"]`);
+                const isInt = selectEl ? (selectEl.value === 'int') : (uploadedDatasetInfo.integer_features && uploadedDatasetInfo.integer_features.includes(feat));
                 
                 const displayVal = isInt ? Math.round(val) : val.toFixed(2);
                 
