@@ -24,6 +24,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const valTrainR2 = document.getElementById('val-train-r2');
     const valTestR2 = document.getElementById('val-test-r2');
     const valQueryPrediction = document.getElementById('val-query-prediction');
+    const targetThresholdInput = document.getElementById('target-threshold');
+
+    // Sync Min target to threshold value
+    targetThresholdInput.addEventListener('input', () => {
+        targetMinInput.value = targetThresholdInput.value;
+    });
     
     // Plots
     const imgShapBeeswarm = document.getElementById('img-shap-beeswarm');
@@ -113,6 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Set Target Range Inputs
             targetMinInput.value = data.target_default_range[0].toFixed(2);
             targetMaxInput.value = data.target_default_range[1].toFixed(2);
+            targetThresholdInput.value = targetMinInput.value;
 
             // Unlock Step 2 Panel
             parametersPanel.classList.remove('disabled');
