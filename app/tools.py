@@ -36,14 +36,34 @@ def validate_and_sample_dataset(file_path: str, target_column: str) -> dict:
 
     # Identify features (excluding target)
     features = [col for col in df.columns if col != target_column]
-    if len(features) > 10:
-        return {"status": "error", "message": f"Dataset has {len(features)} features, which exceeds the maximum limit of 10."}
+    if len(features) > 50:
+        return {"status": "error", "message": f"Dataset has {len(features)} features, which exceeds the maximum limit of 50."}
 
     if target_column not in df.columns:
         return {"status": "error", "message": f"Target column '{target_column}' not found in the dataset."}
 
     # Drop missing values in critical columns
     df = df.dropna(subset=[target_column] + features)
+    
+    # Feature Selection: Select max 10 largest contributors according to correlation matrix
+    if len(features) > 10:
+        # Identify numeric features and non-numeric features
+        numeric_features = [col for col in features if pd.api.types.is_numeric_dtype(df[col])]
+        non_numeric_features = [col for col in features if not pd.api.types.is_numeric_dtype(df[col])]
+        
+        # Calculate correlation for numeric features with target
+        if pd.api.types.is_numeric_dtype(df[target_column]) and len(numeric_features) > 0:
+            correlations = df[numeric_features + [target_column]].corr()[target_column].abs().drop(target_column, errors='ignore')
+            sorted_numeric = correlations.sort_values(ascending=False).index.tolist()
+        else:
+            sorted_numeric = numeric_features
+            
+        # Select top features (preferring high correlation numeric features)
+        top_features = (sorted_numeric + non_numeric_features)[:10]
+        features = top_features
+        # Filter dataframe to only keep the top features and the target column
+        df = df[features + [target_column]]
+
     num_rows = len(df)
     sampled_df = df.copy()
 
@@ -136,6 +156,7 @@ def train_rf_quantile_regressor(sampled_path: str, target_column: str) -> dict:
     rf.fit(X_train, y_train)
 
     # Save the trained model
+    os.makedirs("models", exist_ok=True)
     model_path = "models/rf_model.pkl"
     with open(model_path, "wb") as f:
         pickle.dump(rf, f)
@@ -323,7 +344,7 @@ def generate_correlation_matrix(sampled_path: str, target_column: str) -> dict:
     # Generate heatmap
     plt.figure(figsize=(10, 8))
     import seaborn as sns
-    sns.heatmap(corr, annot=True, cmap='coolwarm', fmt=".2f", vmin=-1, vmax=1, annot_kws={"size": 9})
+    sns.heatmap(corr, annot=True, cmap='YlOrRd', fmt=".2f", vmin=-1, vmax=1, annot_kws={"size": 9})
     plt.title('Correlation Matrix Heatmap')
     plt.tight_layout()
     heatmap_path = "images/correlation_heatmap.png"
