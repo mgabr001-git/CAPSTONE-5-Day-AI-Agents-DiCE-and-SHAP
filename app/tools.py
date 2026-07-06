@@ -48,12 +48,12 @@ def validate_and_sample_dataset(file_path: str, target_column: str) -> dict:
     sampled_df = df.copy()
 
     # Sampling Logic
-    sampling_msg = f"Using full dataset of {num_rows} samples (no sampling applied)."
+    sampling_msg = f"Dataset detected ({num_rows:,} rows). Using full dataset of {num_rows:,} experiments for model training (no sampling applied)."
     if num_rows >= 3000:
         if 5000 <= num_rows <= 10000:
             # Randomly select 3000 samples
             sampled_df = df.sample(n=3000, random_state=42)
-            sampling_msg = "Randomly selecting 3000 samples."
+            sampling_msg = f"Large dataset detected ({num_rows:,} rows). Using a randomly selected representative subset of 3,000 experiments for model training."
         elif num_rows > 10000:
             # Latin Hypercube Sampling (LHS) to select 3000 samples
             num_features = len(features)
@@ -96,11 +96,11 @@ def validate_and_sample_dataset(file_path: str, target_column: str) -> dict:
                 final_indices = unique_indices[:3000]
                 
             sampled_df = df.iloc[final_indices]
-            sampling_msg = "Selecting 3000 samples using LHS algorithm."
+            sampling_msg = f"Large dataset detected ({num_rows:,} rows). Using a Latin Hypercube representative subset of 3,000 experiments for model training."
         else:
             # Fallback for 3000 <= num_rows < 5000
             sampled_df = df.sample(n=3000, random_state=42)
-            sampling_msg = "Randomly selecting 3000 samples."
+            sampling_msg = f"Large dataset detected ({num_rows:,} rows). Using a randomly selected representative subset of 3,000 experiments for model training."
 
     # Save sampled dataset
     sampled_path = "sampled_dataset.csv"
