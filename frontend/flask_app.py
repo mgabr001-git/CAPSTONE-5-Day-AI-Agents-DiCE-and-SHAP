@@ -100,7 +100,7 @@ def upload():
         'integer_features': validation_res.get('integer_features', []),
         'defaults': defaults,
         'ranges': ranges,
-        'correlation_heatmap': '/images/correlation_heatmap.png',
+        'correlation_heatmap': corr_res.get('heatmap_base64'),
         'correlation_top_10': corr_res.get('top_10', [])
     }
 
@@ -115,7 +115,7 @@ def upload():
         'target_column': target_column,
         'target_range': [target_min, target_max],
         'target_default_range': target_default_range,
-        'correlation_heatmap': '/images/correlation_heatmap.png',
+        'correlation_heatmap': corr_res.get('heatmap_base64'),
         'correlation_top_10': corr_res.get('top_10', []),
         'sampling_message': validation_res.get('sampling_message', '')
     })
@@ -191,8 +191,9 @@ def run():
         # Check if the model already exists to skip training and SHAP analysis
         model_path = "models/rf_model.pkl"
         model_exists = os.path.exists(model_path)
+        has_cached_plots = 'train_fit_base64' in current_dataset_info
 
-        if not model_exists:
+        if not model_exists or not has_cached_plots:
             # Step 2: Train Model
             train_res = tools.train_rf_quantile_regressor(sampled_path, target_column)
             if train_res['status'] == 'error':
@@ -200,11 +201,15 @@ def run():
             current_dataset_info['train_r2'] = train_res['train_r2']
             current_dataset_info['test_r2'] = train_res['test_r2']
             current_dataset_info['oob_score'] = train_res['oob_score']
+            current_dataset_info['train_fit_base64'] = train_res['train_fit_base64']
+            current_dataset_info['test_fit_base64'] = train_res['test_fit_base64']
 
             # Step 3: Run SHAP
             shap_res = tools.generate_shap_analysis(train_res['model_path'], sampled_path, target_column)
             if shap_res['status'] == 'error':
                 return jsonify({'success': False, 'error': 'SHAP analysis failed.'}), 500
+            current_dataset_info['beeswarm_base64'] = shap_res['beeswarm_base64']
+            current_dataset_info['feature_importance_base64'] = shap_res['feature_importance_base64']
         else:
             train_res = {
                 'status': 'success',
@@ -256,13 +261,13 @@ def run():
             'query_prediction': query_prediction,
             'threshold': threshold,
             'shap': {
-                'beeswarm': '/images/shap_beeswarm.png',
-                'feature_importance': '/images/shap_feature_importance.png',
-                'waterfall': '/images/shap_waterfall.png'
+                'beeswarm': current_dataset_info.get('beeswarm_base64', '/images/shap_beeswarm.png'),
+                'feature_importance': current_dataset_info.get('feature_importance_base64', '/images/shap_feature_importance.png'),
+                'waterfall': waterfall_res.get('waterfall_base64', '/images/shap_waterfall.png')
             },
             'plots': {
-                'train_fit': '/images/train_predicted_vs_target.png',
-                'test_fit': '/images/test_predicted_vs_target.png'
+                'train_fit': current_dataset_info.get('train_fit_base64', '/images/train_predicted_vs_target.png'),
+                'test_fit': current_dataset_info.get('test_fit_base64', '/images/test_predicted_vs_target.png')
             },
             'dice': dice_res.get('counterfactuals', []) if dice_res['status'] == 'success' else [],
             'dice_error': dice_res.get('message') if dice_res['status'] == 'error' else None

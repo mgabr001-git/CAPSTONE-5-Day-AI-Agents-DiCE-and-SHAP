@@ -150,7 +150,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Update Correlation Heatmap and top 10 contributions list
             const tsUpload = new Date().getTime();
-            imgCorrelationHeatmap.src = `${data.correlation_heatmap}?t=${tsUpload}`;
+            if (data.correlation_heatmap && data.correlation_heatmap.startsWith('data:')) {
+                imgCorrelationHeatmap.src = data.correlation_heatmap;
+            } else {
+                imgCorrelationHeatmap.src = `${data.correlation_heatmap}?t=${tsUpload}`;
+            }
             
             correlationListContainer.innerHTML = '';
             data.correlation_top_10.forEach((pair, idx) => {
@@ -399,10 +403,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Update Image Plots with cache buster
             const ts = new Date().getTime();
-            imgShapBeeswarm.src = `${data.shap.beeswarm}?t=${ts}`;
-            imgShapImportance.src = `${data.shap.feature_importance}?t=${ts}`;
-            imgShapWaterfall.src = `${data.shap.waterfall}?t=${ts}`;
-            imgTrainFit.src = `${data.plots.train_fit}?t=${ts}`;
+            const setSrc = (imgEl, src) => {
+                if (src && src.startsWith('data:')) {
+                    imgEl.src = src;
+                } else if (src) {
+                    imgEl.src = `${src}?t=${ts}`;
+                }
+            };
+            setSrc(imgShapBeeswarm, data.shap.beeswarm);
+            setSrc(imgShapImportance, data.shap.feature_importance);
+            setSrc(imgShapWaterfall, data.shap.waterfall);
+            setSrc(imgTrainFit, data.plots.train_fit);
 
             // Render DiCE Table
             renderDiceTable(queryInstance, data.dice, data.threshold, data.dice_error);

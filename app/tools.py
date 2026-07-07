@@ -14,6 +14,7 @@
 
 import os
 import io
+import base64
 import pandas as pd
 import numpy as np
 import matplotlib
@@ -28,6 +29,13 @@ import pickle
 
 # Ensure images directory exists
 os.makedirs("images", exist_ok=True)
+
+def _fig_to_base64():
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight')
+    buf.seek(0)
+    img_str = base64.b64encode(buf.read()).decode('utf-8')
+    return f"data:image/png;base64,{img_str}"
 os.makedirs("models", exist_ok=True)
 
 
@@ -213,9 +221,14 @@ def train_rf_quantile_regressor(sampled_path: str, target_column: str) -> dict:
     
     # Save training plot
     train_plot_path = "images/train_predicted_vs_target.png"
-    plt.savefig(train_plot_path)
     # Also save as test path to prevent breaking existing code
     test_plot_path = "images/test_predicted_vs_target.png"
+    
+    # Get base64 string
+    train_fit_base64 = _fig_to_base64()
+    
+    # Also save to file
+    plt.savefig(train_plot_path)
     plt.savefig(test_plot_path)
     plt.close()
 
@@ -231,7 +244,9 @@ def train_rf_quantile_regressor(sampled_path: str, target_column: str) -> dict:
         "oob_score": float(rf.oob_score_),
         "model_path": model_path,
         "train_plot_path": train_plot_path,
-        "test_plot_path": test_plot_path
+        "test_plot_path": test_plot_path,
+        "train_fit_base64": train_fit_base64,
+        "test_fit_base64": train_fit_base64
     }
 
 
@@ -252,6 +267,7 @@ def generate_shap_analysis(model_path: str, sampled_path: str, target_column: st
     shap.plots.beeswarm(shap_values, show=False)
     plt.tight_layout()
     beeswarm_path = "images/shap_beeswarm.png"
+    beeswarm_base64 = _fig_to_base64()
     plt.savefig(beeswarm_path)
     plt.close()
 
@@ -260,13 +276,16 @@ def generate_shap_analysis(model_path: str, sampled_path: str, target_column: st
     shap.plots.bar(shap_values, show=False)
     plt.tight_layout()
     bar_path = "images/shap_feature_importance.png"
+    feature_importance_base64 = _fig_to_base64()
     plt.savefig(bar_path)
     plt.close()
 
     return {
         "status": "success",
         "beeswarm_path": beeswarm_path,
-        "feature_importance_path": bar_path
+        "feature_importance_path": bar_path,
+        "beeswarm_base64": beeswarm_base64,
+        "feature_importance_base64": feature_importance_base64
     }
 
 
@@ -362,6 +381,7 @@ def generate_correlation_matrix(sampled_path: str, target_column: str) -> dict:
     plt.title('Correlation Matrix Heatmap')
     plt.tight_layout()
     heatmap_path = "images/correlation_heatmap.png"
+    heatmap_base64 = _fig_to_base64()
     plt.savefig(heatmap_path)
     plt.close()
 
@@ -388,7 +408,8 @@ def generate_correlation_matrix(sampled_path: str, target_column: str) -> dict:
     return {
         "status": "success",
         "heatmap_path": heatmap_path,
-        "top_10": top_10
+        "top_10": top_10,
+        "heatmap_base64": heatmap_base64
     }
 
 
@@ -413,10 +434,12 @@ def generate_shap_waterfall(model_path: str, sampled_path: str, target_column: s
     shap.plots.waterfall(shap_values[0], show=False)
     plt.tight_layout()
     waterfall_path = "images/shap_waterfall.png"
+    waterfall_base64 = _fig_to_base64()
     plt.savefig(waterfall_path)
     plt.close()
 
     return {
         "status": "success",
-        "waterfall_path": waterfall_path
+        "waterfall_path": waterfall_path,
+        "waterfall_base64": waterfall_base64
     }
